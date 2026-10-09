@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DrishtiType — Eye-powered communication</title>
+<style>
+:root{color-scheme:dark;--bg:#08111f;--panel:#101d30;--panel2:#14243a;--line:#263a53;--text:#eef5ff;--muted:#9db0c8;--mint:#72f0cf;--blue:#7aa8ff;--warn:#ffd27a}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 15% 0%,#18304b 0%,var(--bg) 48%);color:var(--text);font:16px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+button,textarea,input{font:inherit}button{cursor:pointer;color:var(--text);border:1px solid var(--line);background:#172940;border-radius:12px;padding:12px 14px;transition:.15s}button:hover{border-color:var(--mint);background:#1c354c}button:focus-visible,textarea:focus-visible{outline:3px solid var(--mint);outline-offset:2px}
+.app{max-width:1200px;margin:auto;padding:24px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}.brand{display:flex;gap:12px;align-items:center}.logo{width:46px;height:46px;border-radius:15px;background:linear-gradient(135deg,#72f0cf,#7aa8ff);display:grid;place-items:center;color:#071521;font-size:24px;font-weight:900}.eyebrow{color:var(--mint);font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}.brand h1{font-size:25px;letter-spacing:-.04em;margin:0}.tag{color:var(--muted);font-size:13px}.status{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:8px 12px;color:var(--muted);font-size:13px}.dot{width:8px;height:8px;border-radius:50%;background:#7b8ba0}.dot.live{background:var(--mint);box-shadow:0 0 12px #72f0cf80}
+.layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.8fr);gap:18px}.panel{background:linear-gradient(180deg,#122239f2,#0d1929f5);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 18px 45px #0002}.panelhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.panelhead h2{font-size:16px;margin:0}.hint{font-size:12px;color:var(--muted)}.message{width:100%;min-height:120px;resize:vertical;background:#091422;color:var(--text);border:1px solid var(--line);border-radius:14px;padding:16px;font-size:21px;line-height:1.5}.suggestions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 18px}.suggestions button{padding:10px 5px;font-weight:700;color:var(--mint);min-height:46px}.suggestions button:disabled{opacity:.25;cursor:default}.keyboard{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}.key{position:relative;min-height:56px;font-size:21px;font-weight:750;border-radius:13px;background:#172941}.key.active{border-color:var(--mint);background:#204b50;box-shadow:0 0 0 2px #72f0cf2b}.gaze-locked{outline:3px solid #ffd27a!important;outline-offset:2px;box-shadow:0 0 0 5px #ffd27a30!important}.key .progress{position:absolute;left:5px;right:5px;bottom:4px;height:3px;background:#31445b;border-radius:4px;overflow:hidden}.key .progress span{display:block;height:100%;width:0;background:var(--mint)}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.primary{background:var(--mint);border-color:var(--mint);color:#061821;font-weight:800}.primary:hover{background:#a0ffe6;color:#061821}.danger{color:#ffb5b5}.side{display:flex;flex-direction:column;gap:18px}.camera{transform:scaleX(-1);width:100%;aspect-ratio:4/3;object-fit:cover;background:#050b13;border:1px solid var(--line);border-radius:14px;display:block}.cameraWrap{position:relative}.camLabel{position:absolute;left:10px;top:10px;background:#07111dd9;border:1px solid #32445a;border-radius:8px;padding:5px 8px;font-size:11px;color:var(--muted)}.calibration{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.calibration button{padding:9px 4px;font-size:12px}.settings{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13px}.settings input{width:100px;accent-color:var(--mint)}.notice{border:1px solid #665332;background:#2b2418;color:#ffe0a1;border-radius:12px;padding:12px;font-size:12px;margin-top:12px}.instructions{color:var(--muted);font-size:13px;margin:0;padding-left:18px}.instructions li{margin:7px 0}.foot{color:#8296b0;font-size:12px;text-align:center;margin:18px 0 4px}.blinkMeter{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--muted);font-size:13px}.blinkMeter i{width:12px;height:12px;border-radius:50%;border:2px solid var(--line);display:inline-block}.blinkMeter i.on{background:var(--mint);border-color:var(--mint)}#eyeState{margin-left:auto}.calOverlay{position:fixed;inset:0;background:#050b14f2;z-index:10000;display:none}.calDot{position:fixed;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 10px #72f0cf33,0 0 30px #72f0cf;transition:left .45s ease,top .45s ease}.calDot.collect{background:#fff;transform:scale(.55);transition:left .45s ease,top .45s ease,transform .4s}.calText{position:fixed;left:50%;top:50%;transform:translate(-50%,calc(-50% - 70px));color:var(--muted);font-size:15px;text-align:center;pointer-events:none}.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#eafff9;color:#071821;padding:10px 16px;border-radius:999px;font-weight:700;font-size:13px;display:none;box-shadow:0 10px 30px #0006}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.app{padding:14px}.panel{padding:15px}.keyboard{gap:6px}.key{min-height:48px;font-size:18px}.suggestions{grid-template-columns:repeat(2,1fr)}.brand h1{font-size:22px}}
+</style>
+</head>
+<body>
+<main class="app">
+<header class="top">
+  <div class="brand"><div class="logo" role="img" aria-label="DrishtiType eye logo"><svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true" focusable="false"><path d="M3 16C6.2 9.9 10.7 6.8 16 6.8S25.8 9.9 29 16c-3.2 6.1-7.7 9.2-13 9.2S6.2 22.1 3 16Z" fill="none" stroke="#071521" stroke-width="2.8" stroke-linejoin="round"/><circle cx="16" cy="16" r="5.1" fill="#071521"/><circle cx="17.7" cy="14.3" r="1.5" fill="#72f0cf"/></svg></div><div><div class="eyebrow">Assistive communication prototype</div><h1>DrishtiType</h1><div class="tag">Every glance has a voice.</div></div></div>
+  <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Eye tracking not started</span></div>
+</header>
+<div class="layout">
+<section class="panel">
+  <div class="panelhead"><h2>Your message</h2><span class="hint">Editable at any time</span></div>
+  <textarea id="message" class="message" aria-label="Message" placeholder="Your message will appear here…"></textarea>
+  <div class="panelhead" style="margin:17px 0 8px"><h2>Word suggestions</h2><span class="hint">Select a word to complete it</span></div>
+  <div id="suggestions" class="suggestions"></div>
+  <div class="panelhead"><h2>Eye keyboard</h2><span class="hint">Look at a key, blink twice to lock, then once more to type</span></div>
+  <div id="keyboard" class="keyboard"></div>
+  <div class="actions">
+    <button id="space">Space</button><button id="backspace">⌫ Backspace</button><button id="undo">Undo</button><button id="clear" class="danger">Clear</button>
+    <button id="speak" class="primary">▶ Speak message</button>
+  </div>
+</section>
+<aside class="side">
+  <section class="panel">
+    <div class="panelhead"><h2>Live gaze preview</h2><span class="hint">Camera stays on device</span></div>
+    <div class="cameraWrap"><video id="video" class="camera" autoplay playsinline muted></video><div class="camLabel">WEBCAM</div></div>
+    <div class="actions"><button id="start" class="primary">Start eye tracking</button><button id="stop">Stop</button></div>
+    <div class="settings" style="margin-top:14px"><label for="speed">Pointer speed</label><input id="speed" type="range" min="1" max="10" step="1" value="4"><strong id="speedValue">4</strong></div>
+    <div class="blinkMeter" aria-live="polite"><span>Blinks</span><i id="pip1"></i><i id="pip2"></i><i id="pip3"></i><span id="eyeState" class="hint">eyes —</span></div>
+    <div id="gazeDebug" class="notice" style="border-color:#263a53;background:#091422;color:#9db0c8">Gaze diagnostics: waiting for tracking data…</div>
+    <div class="actions"><button id="calibrate">Calibrate eyes (9 dots)</button></div>
+    <div class="notice">Prototype note: gaze estimation is approximate and needs calibration for each person, camera, and seating position. Use the on-screen keyboard with clicks or a physical keyboard if tracking is inaccurate.</div>
+  </section>
+  <section class="panel">
+    <div class="panelhead"><h2>How to use</h2><span class="hint">First-time setup</span></div>
+    <ol class="instructions"><li>Sit about an arm’s length from the screen with your face well lit, then start tracking and allow the webcam.</li><li>Calibration runs automatically: keep your head still and follow each dot with your eyes only.</li><li>Move only your eyes — the pointer glides slowly to where you look. Head movement is ignored.</li><li>Look at a letter or word. Blink twice to lock it for 2.6 seconds, then blink once more to select it. If you do not confirm in time, gaze control resumes.</li><li>Suggested words work the same way. Press Speak message to read it aloud.</li></ol>
+    <div class="actions"><button id="demo">Try demo mode (mouse)</button><button id="privacy">Privacy info</button></div>
+  </section>
+</aside>
+</div>
+<div class="foot">DRISHTITYPE · Prototype 0.1 · No account or message upload</div>
+</main>
+<div class="toast" id="toast"></div>
+<div class="calOverlay" id="calOverlay"><div class="calText" id="calText"></div><div class="calDot" id="calDot"></div></div>
+<script type="module">
+import {FaceLandmarker, FilesetResolver} from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
+
+const $ = id => document.getElementById(id);
+const message = $('message'), keyboard = $('keyboard'), suggestions = $('suggestions'), video = $('video');
+const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const special = [{label:'123',value:'123'},{label:'⌫',value:'BACKSPACE'},{label:'Space',value:'SPACE'},{label:'✓',value:'DONE'}];
+const dictionary = ['a','about','am','and','are','can','come','do','feel','for','friend','good','hello','help','here','hope','how','i','I','is','it','like','love','me','my','need','no','not','okay','please','sorry','thank','thanks','that','the','there','this','to','today','want','water','we','what','when','where','yes','you','your'];
+const history = [];
+let toastTimer, demoMode = false, pointerDot = null;
+
+// ---------- Message editing ----------
+function saveHistory(){ history.push(message.value); if(history.length>30) history.shift(); }
+function toast(text){ const t=$('toast');t.textContent=text;t.style.display='block';t.style.zIndex='10001';clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.style.display='none',2400); }
+function insertText(text){saveHistory();message.value += text;updateSuggestions();}
+function insertLetter(ch){insertText(ch);}
+function space(){if(message.value && !message.value.endsWith(' ')){saveHistory();message.value+=' ';updateSuggestions();}}
+function backspace(){if(!message.value)return;saveHistory();message.value=message.value.slice(0,-1);updateSuggestions();}
+function undo(){if(history.length){message.value=history.pop();updateSuggestions();}}
+function clearAll(){if(message.value){saveHistory();message.value='';updateSuggestions();}}
+function currentWord(){return (message.value.match(/(?:^|\s)([^\s]*)$/)||['',''])[1].toLowerCase();}
+function updateSuggestions(){
+  suggestions.innerHTML='';
+  const prefix=currentWord();
+  const matches = prefix ? dictionary.filter(w=>w.toLowerCase().startsWith(prefix)&&w.toLowerCase()!==prefix).slice(0,4) : ['Hello','I need help','Thank you','Yes'];
+  matches.forEach(word=>{const b=document.createElement('button');b.textContent=word;b.dataset.gazeTarget='word:'+word;b.title='Select to complete word';b.addEventListener('click',()=>chooseWord(word));suggestions.appendChild(b);});
+  if(!matches.length){const b=document.createElement('button');b.textContent='No suggestions';b.disabled=true;suggestions.appendChild(b);}
+}
+function chooseWord(word){
+  saveHistory();
+  const prefix=message.value.match(/(?:^|\s)([^\s]*)$/);
+  if(prefix && prefix[1]) message.value=message.value.slice(0,message.value.length-prefix[1].length)+word+' ';
+  else message.value += (message.value && !message.value.endsWith(' ')?' ':'')+word+' ';
+  updateSuggestions();
+}
+function buildKeyboard(){
+  keyboard.innerHTML='';
+  letters.forEach(ch=>{const b=document.createElement('button');b.className='key';b.textContent=ch;b.dataset.gazeTarget='key:'+ch;b.addEventListener('click',()=>insertLetter(ch.toLowerCase()));const p=document.createElement('div');p.className='progress';p.innerHTML='<span></span>';b.appendChild(p);keyboard.appendChild(b);});
+  special.forEach(s=>{const b=document.createElement('button');b.className='key';b.textContent=s.label;b.dataset.gazeTarget='key:'+s.value;b.style.fontSize='14px';b.addEventListener('click',()=>act(s.value));const p=document.createElement('div');p.className='progress';p.innerHTML='<span></span>';b.appendChild(p);keyboard.appendChild(b);});
+}
+function act(v){if(v==='SPACE')space();else if(v==='BACKSPACE')backspace();else if(v==='DONE')toast('Keep going — your message is ready when you are.');else toast('Switch to the number keyboard in the next prototype.');}
+function setStatus(text,live){$('statusText').textContent=text;$('statusDot').classList.toggle('live',!!live);}
+function debug(text){$('gazeDebug').textContent=text;}
+
+// ---------- Pointer + target highlighting ----------
+let activeTarget = null;
+let lockedTarget = null, lockUntil = 0;
+function showPointer(x,y,visible){
+  if(!pointerDot){pointerDot=document.createElement('div');Object.assign(pointerDot.style,{position:'fixed',width:'22px',height:'22px',borderRadius:'50%',background:'#72f0cf55',border:'3px solid #72f0cf',boxShadow:'0 0 0 6px #72f0cf22',zIndex:9999,pointerEvents:'none',transform:'translate(-50%,-50%)'});document.body.appendChild(pointerDot);}
+  pointerDot.style.left=x+'px';pointerDot.style.top=y+'px';pointerDot.style.display=visible?'block':'none';
+}
+function targetCenter(target){
+  if(!target)return null;
+  const r=target.getBoundingClientRect();
+  return {x:r.left+r.width/2,y:r.top+r.height/2};
+}
+// Find the closest usable target with a size-aware hit area. This is more forgiving
+// than relying only on elementFromPoint, which is brittle when gaze estimates jitter.
+function targetNear(x,y){
+  let best=null,bestScore=Infinity;
+  document.querySelectorAll('[data-gaze-target]').forEach(t=>{
+    if(t.disabled)return;
+    const r=t.getBoundingClientRect();
+    const cx=r.left+r.width/2,cy=r.top+r.height/2;
+    const dx=Math.max(0,Math.abs(x-cx)-r.width*0.42);
+    const dy=Math.max(0,Math.abs(y-cy)-r.height*0.42);
+    const score=Math.hypot(dx,dy);
+    if(score<bestScore){bestScore=score;best=t;}
+  });
+  return bestScore<=42?best:null;
+}
+function setActive(target){
+  if(target===activeTarget)return;
+  if(activeTarget){activeTarget.classList.remove('active');const bar=activeTarget.querySelector('.progress span');if(bar)bar.style.width='0%';}
+  activeTarget=target;
+  if(target)target.classList.add('active');
+}
+function showBlinkProgress(n){
+  for(let i=1;i<=3;i++)$('pip'+i).classList.toggle('on',i<=n);
+  const t=lockedTarget||activeTarget, bar=t&&t.querySelector('.progress span');
+  if(bar)bar.style.width=(n/3*100)+'%';
+}
+function clearLock(){
+  if(lockedTarget){lockedTarget.classList.remove('gaze-locked');const bar=lockedTarget.querySelector('.progress span');if(bar)bar.style.width='0%';}
+  lockedTarget=null;lockUntil=0;
+}
+function selectTarget(target){
+  if(!target){toast('No letter or word selected — look at one first.');return;}
+  target.click();
+  const bar=target.querySelector('.progress span');if(bar)bar.style.width='0%';
+  toast('Selected: '+(target.textContent||'item').trim().split('\n')[0]);
+}
+
+// ---------- Eye tracking (MediaPipe Face Landmarker with iris landmarks) ----------
+let landmarker=null, stream=null, running=false, lastVideoTime=-1, rafId=0;
+let model=JSON.parse(localStorage.getItem('drishtiTypeGazeModel')||'null');
+let calib=null; // {collecting:bool, samples:[]}
+let ptr=null; const rawBuf=[];
+let speed=4;
+
+async function loadLandmarker(){
+  if(landmarker)return landmarker;
+  const fileset=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+  const opts=d=>({baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',delegate:d},runningMode:'VIDEO',numFaces:1,outputFaceBlendshapes:true});
+  try{landmarker=await FaceLandmarker.createFromOptions(fileset,opts('GPU'));}
+  catch(e){console.warn('GPU delegate failed, using CPU',e);landmarker=await FaceLandmarker.createFromOptions(fileset,opts('CPU'));}
+  return landmarker;
+}
+
+// Eye-in-head features: iris position measured inside each eye socket (relative to the eye corners,
+// normalised by eye width and rotated with the eye axis). Moving or tilting the head moves the corners
+// and the iris together, so only actual eye movement changes these values.
+function eyeFeatures(lm,bs){
+  const W=video.videoWidth||640,H=video.videoHeight||480;
+  const P=i=>({x:lm[i].x*W,y:lm[i].y*H});
+  const irisA=P(468), irisB=P(473);
+  function eye(a,b){
+    const A=P(a),B=P(b),cx=(A.x+B.x)/2,cy=(A.y+B.y)/2;
+    let dx=B.x-A.x,dy=B.y-A.y;const w=Math.hypot(dx,dy)||1;dx/=w;dy/=w;
+    const I=Math.hypot(irisA.x-cx,irisA.y-cy)<Math.hypot(irisB.x-cx,irisB.y-cy)?irisA:irisB;
+    const rx=I.x-cx,ry=I.y-cy;
+    return {u:(rx*dx+ry*dy)/w, v:(-rx*dy+ry*dx)/w};
+  }
+  const e1=eye(33,133), e2=eye(362,263);
+  const b=n=>bs[n]||0;
+  const bu=((b('eyeLookOutLeft')+b('eyeLookInRight'))-(b('eyeLookInLeft')+b('eyeLookOutRight')))/2;
+  const bv=((b('eyeLookDownLeft')+b('eyeLookDownRight'))-(b('eyeLookUpLeft')+b('eyeLookUpRight')))/2;
+  return [(e1.u+e2.u)/2,(e1.v+e2.v)/2,bu,bv];
+}
+
+// Ridge regression from standardised eye features to screen x/y.
+function solve(A,b){
+  const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
+  for(let c=0;c<n;c++){
+    let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;
+    [M[c],M[p]]=[M[p],M[c]];
+    for(let r=0;r<n;r++){if(r===c)continue;const f=M[r][c]/M[c][c];for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];}
+  }
+  return M.map((r,i)=>r[n]/r[i]);
+}
+function fitModel(points){
+  const k=points[0].f.length;
+  const mean=Array(k).fill(0),std=Array(k).fill(0);
+  points.forEach(p=>p.f.forEach((v,i)=>mean[i]+=v/points.length));
+  points.forEach(p=>p.f.forEach((v,i)=>std[i]+=(v-mean[i])**2/points.length));
+  for(let i=0;i<k;i++)std[i]=Math.sqrt(std[i])||1;
+  const X=points.map(p=>[1,...p.f.map((v,i)=>(v-mean[i])/std[i])]);
+  const fitAxis=y=>{
+    const d=k+1,A=Array.from({length:d},()=>Array(d).fill(0)),b=Array(d).fill(0);
+    X.forEach((row,n)=>{for(let i=0;i<d;i++){b[i]+=row[i]*y[n];for(let j=0;j<d;j++)A[i][j]+=row[i]*row[j];}});
+    for(let i=1;i<d;i++)A[i][i]+=0.5; // ridge keeps the mapping stable
+    return solve(A,b);
+  };
+  // Store targets as viewport fractions so the mapping survives window resizes.
+  return {mean,std,wx:fitAxis(points.map(p=>p.x/innerWidth)),wy:fitAxis(points.map(p=>p.y/innerHeight))};
+}
+function predict(f){
+  const row=[1,...f.map((v,i)=>(v-model.mean[i])/model.std[i])];
+  const dot=w=>row.reduce((s,v,i)=>s+v*w[i],0);
+  return {x:dot(model.wx)*innerWidth,y:dot(model.wy)*innerHeight};
+}
+const median=a=>{const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;};
+// Require a candidate to remain stable briefly before snapping, preventing jitter from
+// making the highlighted key jump between neighbouring targets.
+let candidateSince=0, pendingCandidate=null;
+
+// Filter gaze noise, but avoid excessive lag. The pointer follows the gaze estimate;
+// when it stays near one target briefly, it gently snaps to that target's centre.
+function movePointer(raw){
+  rawBuf.push(raw);if(rawBuf.length>9)rawBuf.shift();
+  const m={x:median(rawBuf.map(p=>p.x)),y:median(rawBuf.map(p=>p.y))};
+  if(!ptr)ptr={...m};
+  const dx=m.x-ptr.x,dy=m.y-ptr.y,d=Math.hypot(dx,dy);
+  if(d>5){
+    const step=Math.min(d*(0.22+speed*0.018),8+speed*3.2);
+    ptr.x+=dx/d*step;ptr.y+=dy/d*step;
+  }
+  ptr.x=Math.max(0,Math.min(innerWidth-1,ptr.x));ptr.y=Math.max(0,Math.min(innerHeight-1,ptr.y));
+  if(lockedTarget&&performance.now()<lockUntil){
+    const c=targetCenter(lockedTarget);if(c){ptr.x=c.x;ptr.y=c.y;}
+    showPointer(ptr.x,ptr.y,true);setActive(lockedTarget);return;
+  }
+  if(lockedTarget)clearLock();
+  const candidate=targetNear(ptr.x,ptr.y), now=performance.now();
+  if(candidate!==pendingCandidate){pendingCandidate=candidate;candidateSince=now;}
+  if(candidate&&now-candidateSince>=140){
+    const c=targetCenter(candidate);
+    if(c){ptr.x+=(c.x-ptr.x)*0.72;ptr.y+=(c.y-ptr.y)*0.72;}
+    setActive(candidate);
+  }else if(!candidate&&now-candidateSince>=180){
+    setActive(null);
+  }
+  showPointer(ptr.x,ptr.y,true);
+}
+
+// ---------- Two-blink lock + third-blink confirmation ----------
+let eyesClosed=false, closedAt=0, blinkCount=0, lastBlinkEnd=0, freezeUntil=0, openBaseline=0.15;
+let closeTarget=null, firstBlinkTarget=null, lockTimer=null;
+const BLINK_GAP=2800, LOCK_DURATION=2600, MIN_BLINK=40, MAX_BLINK=700;
+function resetBlinks(){
+  blinkCount=0;firstBlinkTarget=null;closeTarget=null;
+  if(lockTimer){clearTimeout(lockTimer);lockTimer=null;}
+  clearLock();showBlinkProgress(0);
+}
+function updateBlink(score,now){
+  const closeT=Math.max(0.45,openBaseline+0.28), openT=closeT-0.15;
+  if(!eyesClosed&&score<closeT-0.1)openBaseline+=(score-openBaseline)*0.02;
+  if(!eyesClosed&&score>closeT){eyesClosed=true;closedAt=now;closeTarget=lockedTarget||activeTarget;}
+  else if(eyesClosed&&score<openT){
+    eyesClosed=false;freezeUntil=now+140;
+    const dur=now-closedAt;
+    if(dur<MIN_BLINK||dur>MAX_BLINK||calib){if(calib)resetBlinks();return;}
+    if(blinkCount>0&&now-lastBlinkEnd>BLINK_GAP)resetBlinks();
+    if(blinkCount===0){
+      firstBlinkTarget=closeTarget;
+      if(!firstBlinkTarget){toast('Look at a letter or word first.');return;}
+      blinkCount=1;
+      toast('1 blink · keep looking at the same target');
+    }else if(blinkCount===1){
+      // Second blink locks the original target, even if the pointer wobbles slightly.
+      lockedTarget=firstBlinkTarget;
+      if(lockedTarget){
+        lockedTarget.classList.add('gaze-locked');lockUntil=now+LOCK_DURATION;
+        const c=targetCenter(lockedTarget);if(c){ptr={x:c.x,y:c.y};showPointer(c.x,c.y,true);}
+        setActive(lockedTarget);blinkCount=2;toast('Target locked · blink once more within 2.6 seconds');
+        if(lockTimer)clearTimeout(lockTimer);
+        lockTimer=setTimeout(()=>{if(lockedTarget&&performance.now()>=lockUntil){resetBlinks();toast('Lock expired · gaze control resumed');}},LOCK_DURATION+40);
+      }else resetBlinks();
+    }else if(blinkCount===2){
+      const target=lockedTarget;resetBlinks();selectTarget(target);
+    }
+    lastBlinkEnd=now;showBlinkProgress(blinkCount);
+  }
+  if(blinkCount>0&&!eyesClosed&&now-lastBlinkEnd>BLINK_GAP)resetBlinks();
+  if(lockedTarget&&now>=lockUntil)resetBlinks();
+  $('eyeState').textContent=lockedTarget?'target locked · '+Math.max(0,((lockUntil-now)/1000)).toFixed(1)+'s':eyesClosed?'eyes closed':'eyes open';
+}
+
+let frames=0,lastFpsAt=0,fps=0,faceSeen=false;
+function processResult(res,now){
+  frames++;if(now-lastFpsAt>1000){fps=frames;frames=0;lastFpsAt=now;}
+  const lm=res.faceLandmarks&&res.faceLandmarks[0];
+  if(!lm||lm.length<478){faceSeen=false;debug('No face detected — face the camera with your eyes well lit.');$('eyeState').textContent='no face';return;}
+  faceSeen=true;
+  const bs={};(res.faceBlendshapes&&res.faceBlendshapes[0]?res.faceBlendshapes[0].categories:[]).forEach(c=>bs[c.categoryName]=c.score);
+  const blink=((bs.eyeBlinkLeft||0)+(bs.eyeBlinkRight||0))/2;
+  updateBlink(blink,now);
+  // Hold the pointer still while the eyes are closing, closed, or just reopening.
+  if(eyesClosed||blink>Math.max(0.3,openBaseline+0.15)||now<freezeUntil)return;
+  const f=eyeFeatures(lm,bs);
+  if(calib){if(calib.collecting)calib.samples.push(f);return;}
+  if(!model){debug('Face found. Run calibration so the pointer can follow your eyes.');return;}
+  movePointer(predict(f));
+  debug('Tracking eyes · '+fps+' fps · pointer '+Math.round(ptr.x)+', '+Math.round(ptr.y)+(activeTarget?' · on '+activeTarget.textContent.trim():''));
+}
+function loop(){
+  if(!running)return;
+  if(video.readyState>=2&&video.currentTime!==lastVideoTime){
+    lastVideoTime=video.currentTime;
+    try{processResult(landmarker.detectForVideo(video,performance.now()),performance.now());}catch(e){console.error(e);}
+  }
+  rafId=requestAnimationFrame(loop);
+}
+
+// ---------- Calibration ----------
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function calibrate(){
+  if(!running){toast('Start eye tracking first.');return;}
+  if(calib)return;
+  const overlay=$('calOverlay'),dot=$('calDot'),text=$('calText');
+  const fr=[0.06,0.5,0.94],order=[[1,1],[0,0],[1,0],[2,0],[2,1],[2,2],[1,2],[0,2],[0,1]];
+  calib={collecting:false,samples:[]};resetBlinks();
+  overlay.style.display='block';
+  text.innerHTML='Keep your head still.<br>Follow the dot with your <b>eyes only</b>.';
+  dot.style.left=innerWidth/2+'px';dot.style.top=innerHeight/2+'px';
+  await wait(2200);text.textContent='';
+  const points=[];
+  for(const [cx,cy] of order){
+    const x=fr[cx]*innerWidth,y=fr[cy]*innerHeight;
+    dot.classList.remove('collect');dot.style.left=x+'px';dot.style.top=y+'px';
+    await wait(1100); // let the eyes settle on the dot
+    dot.classList.add('collect');calib.samples=[];calib.collecting=true;
+    await wait(1300);
+    calib.collecting=false;
+    if(calib.samples.length<5)continue;
+    const k=calib.samples[0].length;
+    points.push({x,y,f:Array.from({length:k},(_,i)=>median(calib.samples.map(s=>s[i])))});
+  }
+  dot.classList.remove('collect');overlay.style.display='none';calib=null;
+  if(points.length<6){toast('Calibration failed — your face was not seen clearly. Improve lighting and try again.');debug('Calibration needs a clearly visible face. Try again with more light.');return;}
+  model=fitModel(points);localStorage.setItem('drishtiTypeGazeModel',JSON.stringify(model));
+  ptr=null;rawBuf.length=0;pendingCandidate=null;candidateSince=0;
+  toast('Calibrated. Look at a target, blink twice to lock it, then once more to select.');
+}
+
+async function start(){
+  if(running)return;
+  if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){setStatus('Camera unavailable',false);toast('Webcam access needs HTTPS (or localhost) and a supported browser.');return;}
+  try{
+    setStatus('Requesting webcam…',false);
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}},audio:false});
+    video.srcObject=stream;await video.play();
+    setStatus('Loading eye model…',false);debug('Loading eye-tracking model… this can take a few seconds.');
+    await loadLandmarker();
+    running=true;demoMode=false;lastVideoTime=-1;ptr=null;rawBuf.length=0;pendingCandidate=null;candidateSince=0;pendingCandidate=null;candidateSince=0;
+    setStatus('Eye tracking active',true);
+    loop();
+    if(!model){await wait(800);calibrate();}
+    else toast('Using your last calibration. Press Calibrate if the pointer is off.');
+  }catch(err){
+    console.error(err);stopTracking();setStatus('Camera unavailable',false);
+    const msg=cameraErrorMessage(err);debug(msg);toast(msg);
+  }
+}
+function stopTracking(){
+  running=false;cancelAnimationFrame(rafId);
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  video.srcObject=null;resetBlinks();setActive(null);if(pointerDot)pointerDot.style.display='none';
+}
+function cameraErrorMessage(err){
+  const name=err&&err.name;
+  if(name==='NotAllowedError'||name==='SecurityError')return 'Webcam permission was blocked. Allow camera access in the browser address bar and try again.';
+  if(name==='NotFoundError'||name==='OverconstrainedError')return 'No compatible webcam was found on this device.';
+  if(name==='NotReadableError'||name==='AbortError')return 'The webcam is in use by another app or tab. Close it and try again.';
+  return 'Could not start eye tracking: '+((err&&err.message)||err||'unknown error');
+}
+
+// ---------- Wiring ----------
+$('speed').addEventListener('input',e=>{speed=+e.target.value;$('speedValue').textContent=speed;});
+$('space').onclick=space;$('backspace').onclick=backspace;$('undo').onclick=undo;$('clear').onclick=clearAll;
+$('speak').onclick=()=>{const text=message.value.trim();if(!text){toast('Write a message first.');return;}if(!('speechSynthesis'in window)){toast('Speech synthesis is not supported in this browser.');return;}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=.88;speechSynthesis.speak(u);};
+message.addEventListener('input',updateSuggestions);
+$('start').onclick=start;
+$('stop').onclick=()=>{stopTracking();demoMode=false;setStatus('Eye tracking stopped',false);debug('Eye tracking stopped.');};
+$('calibrate').onclick=calibrate;
+$('demo').onclick=()=>{stopTracking();demoMode=true;setStatus('Demo mode · mouse',true);debug('Demo mode: the mouse moves the pointer. Click to select.');toast('Demo mode: move the mouse to highlight keys, click to select.');};
+$('privacy').onclick=()=>alert('DrishtiType prototype: messages are processed in this page and are not uploaded by this app. When you start eye tracking, webcam frames are analysed by MediaPipe inside your browser and never leave your device. Use only on a device you trust and stop tracking when finished.');
+document.addEventListener('mousemove',e=>{if(demoMode){showPointer(e.clientX,e.clientY,true);setActive(targetNear(e.clientX,e.clientY));}});
+document.addEventListener('keydown',e=>{if(e.target===message)return;if(e.key.length===1&&/[a-zA-Z]/.test(e.key))insertLetter(e.key.toLowerCase());else if(e.key==='Backspace')backspace();else if(e.key===' '){e.preventDefault();space();}});
+buildKeyboard();updateSuggestions();
+
+</script>
+</body>
+</html>
