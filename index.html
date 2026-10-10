@@ -38,7 +38,7 @@ button,textarea,input{font:inherit}button{cursor:pointer;color:var(--text);borde
     <div class="panelhead"><h2>Live gaze preview</h2><span class="hint">Camera stays on device</span></div>
     <div class="cameraWrap"><video id="video" class="camera" autoplay playsinline muted></video><div class="camLabel">WEBCAM</div></div>
     <div class="actions"><button id="start" data-gaze-target="control:start" class="primary">Start eye tracking</button><button id="stop" data-gaze-target="control:stop">Stop</button></div>
-    <div class="settings" style="margin-top:14px"><label for="speed">Pointer speed</label><input id="speed" type="range" min="1" max="10" step="1" value="4"><strong id="speedValue">4</strong></div>
+    <div class="settings" style="margin-top:14px"><label for="speed">Pointer speed</label><button id="speedDown" data-gaze-target="control:speedDown" aria-label="Decrease pointer speed">−</button><input id="speed" type="range" min="1" max="10" step="1" value="4"><button id="speedUp" data-gaze-target="control:speedUp" aria-label="Increase pointer speed">+</button><strong id="speedValue">4</strong></div>
     <div class="blinkMeter" aria-live="polite"><span>Blinks</span><i id="pip1"></i><i id="pip2"></i><i id="pip3"></i><span id="eyeState" class="hint">eyes —</span></div>
     <div id="gazeDebug" class="notice" style="border-color:#263a53;background:#091422;color:#9db0c8">Gaze diagnostics: waiting for tracking data…</div>
     <div class="actions"><button id="calibrate" data-gaze-target="control:calibrate">Calibrate eyes (9 dots)</button></div>
@@ -46,8 +46,8 @@ button,textarea,input{font:inherit}button{cursor:pointer;color:var(--text);borde
   </section>
   <section class="panel">
     <div class="panelhead"><h2>How to use</h2><span class="hint">First-time setup</span></div>
-    <ol class="instructions"><li>Sit about an arm’s length from the screen with your face well lit, then start tracking and allow the webcam.</li><li>Calibration runs automatically: keep your head still and follow each dot with your eyes only.</li><li>Move only your eyes — the pointer glides slowly to where you look. Head movement is ignored.</li><li>Look at a letter or word. Blink twice to lock it for 2.6 seconds, then blink once more to select it. If you do not confirm in time, gaze control resumes.</li><li>Suggested words work the same way. Press Speak message to read it aloud.</li></ol>
-    <div class="actions"><button id="demo">Try demo mode (mouse)</button><button id="privacy">Privacy info</button></div>
+    <ol class="instructions"><li>Sit about an arm’s length from the screen with your face well lit, then start tracking and allow the webcam.</li><li>Calibration runs automatically: keep your head still and follow each dot with your eyes only.</li><li>Move only your eyes — the pointer glides slowly to where you look. Head movement is ignored.</li><li>By default, hold your gaze on a key or word for about 1.1 seconds to select it. Move your eyes away to re-arm that target. You can switch to blink selection if it works better for you.</li><li>Use the on-screen number and punctuation keys as needed. Look at Speak message to read your composed message aloud; use Undo, Backspace, or Clear to correct it.</li></ol>
+    <div class="actions"><button id="demo" data-gaze-target="control:demo">Try demo mode (mouse)</button><button id="privacy" data-gaze-target="control:privacy">Privacy info</button></div>
   </section>
 </aside>
 </div>
@@ -504,7 +504,9 @@ function cancelSelection(){
   resetBlinks();pendingCandidate=null;candidateSince=0;setActive(null);
   toast('Selection cancelled.');
 }
-$('speed').addEventListener('input',e=>{speed=+e.target.value;$('speedValue').textContent=speed;});
+function setSpeed(value){speed=Math.max(1,Math.min(10,value));$('speed').value=String(speed);$('speedValue').textContent=String(speed);}
+$('speed').addEventListener('input',e=>setSpeed(+e.target.value));
+$('speedDown').onclick=()=>setSpeed(speed-1);$('speedUp').onclick=()=>setSpeed(speed+1);
 $('space').onclick=space;$('backspace').onclick=backspace;$('undo').onclick=undo;$('clear').onclick=clearAll;
 $('speak').onclick=speakMessage;
 $('selectionMode').onclick=()=>{
