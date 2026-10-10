@@ -89,12 +89,32 @@ function chooseWord(word){
   else message.value += (message.value && !message.value.endsWith(' ')?' ':'')+word+' ';
   updateSuggestions();
 }
+let keyboardMode='letters';
+const numberKeys='1234567890'.split('');
+const punctuationKeys=['.',',','?','!',"'",'-',':',';','@','/'];
 function buildKeyboard(){
   keyboard.innerHTML='';
-  letters.forEach(ch=>{const b=document.createElement('button');b.className='key';b.textContent=ch;b.dataset.gazeTarget='key:'+ch;b.addEventListener('click',()=>insertLetter(ch.toLowerCase()));const p=document.createElement('div');p.className='progress';p.innerHTML='<span></span>';b.appendChild(p);keyboard.appendChild(b);});
-  special.forEach(s=>{const b=document.createElement('button');b.className='key';b.textContent=s.label;b.dataset.gazeTarget='key:'+s.value;b.style.fontSize='14px';b.addEventListener('click',()=>act(s.value));const p=document.createElement('div');p.className='progress';p.innerHTML='<span></span>';b.appendChild(p);keyboard.appendChild(b);});
+  const keys=keyboardMode==='letters'?letters:(keyboardMode==='numbers'?numberKeys:punctuationKeys);
+  keys.forEach(ch=>{
+    const b=document.createElement('button');b.className='key';b.textContent=ch;b.dataset.gazeTarget='key:'+ch;
+    b.setAttribute('aria-label',keyboardMode==='punctuation'&&ch==='-'?'hyphen':ch);
+    b.addEventListener('click',()=>keyboardMode==='letters'?insertLetter(ch.toLowerCase()):insertText(ch));
+    const p=document.createElement('div');p.className='progress';p.innerHTML='<span></span>';b.appendChild(p);keyboard.appendChild(b);
+  });
+  const controls=[{label:keyboardMode==='letters'?'123':keyboardMode==='numbers'?'#+=':'ABC',value:'TOGGLE_KEYBOARD'},...special.slice(1)];
+  controls.forEach(s=>{const b=document.createElement('button');b.className='key';b.textContent=s.label;b.dataset.gazeTarget='key:'+s.value;b.style.fontSize='14px';b.setAttribute('aria-label',s.value==='TOGGLE_KEYBOARD'?(keyboardMode==='letters'?'Switch to numbers':keyboardMode==='numbers'?'Switch to punctuation':'Switch to letters'):s.label);b.addEventListener('click',()=>act(s.value));const p=document.createElement('div');p.className='progress';p.innerHTML='<span></span>';b.appendChild(p);keyboard.appendChild(b);});
+  keyboard.setAttribute('aria-label',keyboardMode==='letters'?'Letter keyboard':keyboardMode==='numbers'?'Number keyboard':'Punctuation keyboard');
 }
-function act(v){if(v==='SPACE')space();else if(v==='BACKSPACE')backspace();else if(v==='DONE')toast('Keep going — your message is ready when you are.');else toast('Switch to the number keyboard in the next prototype.');}
+function act(v){
+  if(v==='SPACE')space();
+  else if(v==='BACKSPACE')backspace();
+  else if(v==='DONE')toast('Keep going — your message is ready when you are.');
+  else if(v==='TOGGLE_KEYBOARD'){
+    keyboardMode=keyboardMode==='letters'?'numbers':keyboardMode==='numbers'?'punctuation':'letters';
+    buildKeyboard();
+    toast(keyboardMode==='numbers'?'Number keyboard':keyboardMode==='punctuation'?'Punctuation keyboard':'Letter keyboard');
+  }
+}
 function setStatus(text,live){$('statusText').textContent=text;$('statusDot').classList.toggle('live',!!live);}
 function debug(text){$('gazeDebug').textContent=text;}
 
