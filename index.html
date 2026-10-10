@@ -182,7 +182,7 @@ function readSavedModel(){
   try {
     const m=JSON.parse(raw);
     const finiteArray=(a,n)=>Array.isArray(a)&&a.length===n&&a.every(Number.isFinite);
-    const valid=m&&m.type==='mlp6x12x2-v1'&&
+    const valid=m&&m.type==='mlp6x12x2-v2'&&
       finiteArray(m.mean,6)&&finiteArray(m.std,6)&&m.std.every(v=>v>0)&&
       finiteArray(m.om,2)&&finiteArray(m.os,2)&&m.os.every(v=>v>0)&&
       Array.isArray(m.w1)&&m.w1.length===12&&m.w1.every(a=>finiteArray(a,6))&&
@@ -218,13 +218,20 @@ async function loadLandmarker(forceCpu=false){
 function eyeFeatures(lm,bs){
   const W=video.videoWidth||640,H=video.videoHeight||480;
   const P=i=>({x:lm[i].x*W,y:lm[i].y*H});
-  function eye(a,b,irisIndex){
-    const A=P(a),B=P(b),I=P(irisIndex),cx=(A.x+B.x)/2,cy=(A.y+B.y)/2;
+  function eye(a,b,irisIndex,upperIndex,lowerIndex){
+    const A=P(a),B=P(b),I=P(irisIndex),U=P(upperIndex),L=P(lowerIndex);
+    const cx=(A.x+B.x)/2,cy=(A.y+B.y)/2;
     let dx=B.x-A.x,dy=B.y-A.y;const w=Math.hypot(dx,dy)||1;dx/=w;dy/=w;
     const rx=I.x-cx,ry=I.y-cy;
-    return {u:(rx*dx+ry*dy)/w,v:(-rx*dy+ry*dx)/w};
+    // Horizontal iris displacement is relative to eye width; vertical displacement
+    // is relative to the much smaller eyelid aperture, not eye width. This preserves
+    // useful up/down signal on compact mobile screens.
+    const horizontal=(rx*dx+ry*dy)/w;
+    const verticalScale=Math.hypot(L.x-U.x,L.y-U.y)||w*0.25;
+    const vertical=(-rx*dy+ry*dx)/verticalScale;
+    return {u:horizontal,v:vertical};
   }
-  const e1=eye(33,133,468),e2=eye(362,263,473);
+  const e1=eye(33,133,468,159,145),e2=eye(362,263,473,386,374);
   const q=n=>bs[n]||0;
   const bu=((q('eyeLookOutLeft')+q('eyeLookInRight'))-(q('eyeLookInLeft')+q('eyeLookOutRight')))/2;
   const bv=((q('eyeLookDownLeft')+q('eyeLookDownRight'))-(q('eyeLookUpLeft')+q('eyeLookUpRight')))/2;
@@ -261,7 +268,7 @@ function fitModel(samples){
     for(let j=0;j<h;j++){b1[j]-=lr*gb1[j];for(let i=0;i<k;i++)w1[j][i]-=lr*(g1[j][i]+reg*w1[j][i]);}
     for(let j=0;j<2;j++){b2[j]-=lr*gb2[j];for(let i=0;i<h;i++)w2[j][i]-=lr*(g2[j][i]+reg*w2[j][i]);}
   }
-  return {type:'mlp6x12x2-v1',mean,std,om,os,w1,b1,w2,b2};
+  return {type:'mlp6x12x2-v2',mean,std,om,os,w1,b1,w2,b2};
 }
 function predict(f){
   if(!model||!model.w1)return {x:innerWidth/2,y:innerHeight/2};
