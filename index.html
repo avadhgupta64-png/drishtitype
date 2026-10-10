@@ -353,7 +353,15 @@ let frames=0,lastFpsAt=0,fps=0,faceSeen=false;
 function processResult(res,now){
   frames++;if(now-lastFpsAt>1000){fps=frames;frames=0;lastFpsAt=now;}
   const lm=res.faceLandmarks&&res.faceLandmarks[0];
-  if(!lm||lm.length<478){faceSeen=false;debug('No face detected — face the camera with your eyes well lit.');$('eyeState').textContent='no face';return;}
+  // Iris landmarks used below are 468 and 473; requiring 478 can reject otherwise
+  // usable face results from model/runtime variants that expose fewer auxiliary points.
+  if(!lm||lm.length<474){
+    faceSeen=false;
+    if(pointerDot)pointerDot.style.display='none';
+    debug('Face landmarks unavailable in this frame — keep your face centred and well lit.');
+    $('eyeState').textContent='tracking…';
+    return;
+  }
   faceSeen=true;
   const bs={};(res.faceBlendshapes&&res.faceBlendshapes[0]?res.faceBlendshapes[0].categories:[]).forEach(c=>bs[c.categoryName]=c.score);
   const blink=((bs.eyeBlinkLeft||0)+(bs.eyeBlinkRight||0))/2;
@@ -362,7 +370,15 @@ function processResult(res,now){
   if(eyesClosed||blink>Math.max(0.3,openBaseline+0.15)||now<freezeUntil)return;
   const f=eyeFeatures(lm,bs);
   if(calib){if(calib.collecting)calib.samples.push(f);return;}
-  if(!model){debug('Face found. Run calibration so the pointer can follow your eyes.');return;}
+  if(!model){
+    // Keep a visible, approximate pointer available if calibration has not completed.
+    // Iris displacement is small, so amplify it; calibration replaces this fallback
+    // with the trained per-user model as soon as stable samples are collected.
+    const u=(f[0]+f[2])/2, v=(f[1]+f[3])/2;
+    movePointer({x:innerWidth*(0.5+u*2.8),y:innerHeight*(0.5+v*3.8)});
+    debug('Face found · uncalibrated gaze preview · '+fps+' fps · pointer '+Math.round(ptr.x)+', '+Math.round(ptr.y)+' · run calibration for accurate control.');
+    return;
+  }
   movePointer(predict(f));
   debug('Tracking eyes · '+fps+' fps · pointer '+Math.round(ptr.x)+', '+Math.round(ptr.y)+(activeTarget?' · on '+activeTarget.textContent.trim():''));
 }
