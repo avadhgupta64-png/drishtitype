@@ -165,59 +165,64 @@ async function loadLandmarker(){
   return landmarker;
 }
 
-// Eye-in-head features: iris position measured inside each eye socket (relative to the eye corners,
-// normalised by eye width and rotated with the eye axis). Moving or tilting the head moves the corners
-// and the iris together, so only actual eye movement changes these values.
+// Six per-user features: iris position in EACH eye socket plus MediaPipe eye-look signals.
+// Keep each iris paired with its corresponding socket; nearest-iris matching can swap measurements.
 function eyeFeatures(lm,bs){
   const W=video.videoWidth||640,H=video.videoHeight||480;
   const P=i=>({x:lm[i].x*W,y:lm[i].y*H});
-  const irisA=P(468), irisB=P(473);
-  function eye(a,b){
-    const A=P(a),B=P(b),cx=(A.x+B.x)/2,cy=(A.y+B.y)/2;
+  function eye(a,b,irisIndex){
+    const A=P(a),B=P(b),I=P(irisIndex),cx=(A.x+B.x)/2,cy=(A.y+B.y)/2;
     let dx=B.x-A.x,dy=B.y-A.y;const w=Math.hypot(dx,dy)||1;dx/=w;dy/=w;
-    const I=Math.hypot(irisA.x-cx,irisA.y-cy)<Math.hypot(irisB.x-cx,irisB.y-cy)?irisA:irisB;
     const rx=I.x-cx,ry=I.y-cy;
-    return {u:(rx*dx+ry*dy)/w, v:(-rx*dy+ry*dx)/w};
+    return {u:(rx*dx+ry*dy)/w,v:(-rx*dy+ry*dx)/w};
   }
-  const e1=eye(33,133), e2=eye(362,263);
-  const b=n=>bs[n]||0;
-  const bu=((b('eyeLookOutLeft')+b('eyeLookInRight'))-(b('eyeLookInLeft')+b('eyeLookOutRight')))/2;
-  const bv=((b('eyeLookDownLeft')+b('eyeLookDownRight'))-(b('eyeLookUpLeft')+b('eyeLookUpRight')))/2;
-  return [(e1.u+e2.u)/2,(e1.v+e2.v)/2,bu,bv];
+  const e1=eye(33,133,468),e2=eye(362,263,473);
+  const q=n=>bs[n]||0;
+  const bu=((q('eyeLookOutLeft')+q('eyeLookInRight'))-(q('eyeLookInLeft')+q('eyeLookOutRight')))/2;
+  const bv=((q('eyeLookDownLeft')+q('eyeLookDownRight'))-(q('eyeLookUpLeft')+q('eyeLookUpRight')))/2;
+  return [e1.u,e1.v,e2.u,e2.v,bu,bv];
 }
 
-// Ridge regression from standardised eye features to screen x/y.
-function solve(A,b){
-  const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
-  for(let c=0;c<n;c++){
-    let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;
-    [M[c],M[p]]=[M[p],M[c]];
-    for(let r=0;r<n;r++){if(r===c)continue;const f=M[r][c]/M[c][c];for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];}
-  }
-  return M.map((r,i)=>r[n]/r[i]);
-}
-function fitModel(points){
-  const k=points[0].f.length;
+// Personalised multilayer perceptron (6 inputs -> 12 hidden tanh units -> 2 outputs).
+// Train on all stable frames collected at each calibration target, not one median per dot.
+function fitModel(samples){
+  const k=samples[0].f.length,h=12;
   const mean=Array(k).fill(0),std=Array(k).fill(0);
-  points.forEach(p=>p.f.forEach((v,i)=>mean[i]+=v/points.length));
-  points.forEach(p=>p.f.forEach((v,i)=>std[i]+=(v-mean[i])**2/points.length));
-  for(let i=0;i<k;i++)std[i]=Math.sqrt(std[i])||1;
-  const X=points.map(p=>[1,...p.f.map((v,i)=>(v-mean[i])/std[i])]);
-  const fitAxis=y=>{
-    const d=k+1,A=Array.from({length:d},()=>Array(d).fill(0)),b=Array(d).fill(0);
-    X.forEach((row,n)=>{for(let i=0;i<d;i++){b[i]+=row[i]*y[n];for(let j=0;j<d;j++)A[i][j]+=row[i]*row[j];}});
-    for(let i=1;i<d;i++)A[i][i]+=0.5; // ridge keeps the mapping stable
-    return solve(A,b);
-  };
-  // Store targets as viewport fractions so the mapping survives window resizes.
-  return {mean,std,wx:fitAxis(points.map(p=>p.x/innerWidth)),wy:fitAxis(points.map(p=>p.y/innerHeight))};
+  samples.forEach(p=>p.f.forEach((v,i)=>mean[i]+=v/samples.length));
+  samples.forEach(p=>p.f.forEach((v,i)=>std[i]+=(v-mean[i])**2/samples.length));
+  for(let i=0;i<k;i++)std[i]=Math.sqrt(std[i])||1e-6;
+  const om=[0,0],os=[0,0];
+  samples.forEach(p=>{om[0]+=p.x/innerWidth/samples.length;om[1]+=p.y/innerHeight/samples.length;});
+  samples.forEach(p=>{os[0]+=(p.x/innerWidth-om[0])**2/samples.length;os[1]+=(p.y/innerHeight-om[1])**2/samples.length;});
+  for(let i=0;i<2;i++)os[i]=Math.sqrt(os[i])||1e-3;
+  const data=samples.map(p=>({x:p.f.map((v,i)=>(v-mean[i])/std[i]),y:[(p.x/innerWidth-om[0])/os[0],(p.y/innerHeight-om[1])/os[1]]}));
+  let seed=9137;const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return (seed/4294967296-.5)*.18;};
+  const w1=Array.from({length:h},()=>Array.from({length:k},rand)),b1=Array(h).fill(0);
+  const w2=Array.from({length:2},()=>Array.from({length:h},rand)),b2=Array(2).fill(0);
+  const lr=.008,reg=.001,epochs=700;
+  for(let ep=0;ep<epochs;ep++){
+    const g1=w1.map(r=>r.map(()=>0)),gb1=b1.map(()=>0),g2=w2.map(r=>r.map(()=>0)),gb2=b2.map(()=>0);
+    for(const p of data){
+      const hval=w1.map((w,j)=>Math.tanh(w.reduce((sum,v,i)=>sum+v*p.x[i],b1[j])));
+      const y=w2.map((w,j)=>w.reduce((sum,v,i)=>sum+v*hval[i],b2[j]));
+      const dy=y.map((v,j)=>2*(v-p.y[j])/data.length);
+      const dh=hval.map((v,i)=>dy.reduce((sum,v,j)=>sum+v*w2[j][i],0)*(1-v*v));
+      for(let j=0;j<2;j++){gb2[j]+=dy[j];for(let i=0;i<h;i++)g2[j][i]+=dy[j]*hval[i];}
+      for(let j=0;j<h;j++){gb1[j]+=dh[j];for(let i=0;i<k;i++)g1[j][i]+=dh[j]*p.x[i];}
+    }
+    for(let j=0;j<h;j++){b1[j]-=lr*gb1[j];for(let i=0;i<k;i++)w1[j][i]-=lr*(g1[j][i]+reg*w1[j][i]);}
+    for(let j=0;j<2;j++){b2[j]-=lr*gb2[j];for(let i=0;i<h;i++)w2[j][i]-=lr*(g2[j][i]+reg*w2[j][i]);}
+  }
+  return {type:'mlp6x12x2-v1',mean,std,om,os,w1,b1,w2,b2};
 }
 function predict(f){
-  const row=[1,...f.map((v,i)=>(v-model.mean[i])/model.std[i])];
-  const dot=w=>row.reduce((s,v,i)=>s+v*w[i],0);
-  return {x:dot(model.wx)*innerWidth,y:dot(model.wy)*innerHeight};
+  if(!model||!model.w1)return {x:innerWidth/2,y:innerHeight/2};
+  const x=f.map((v,i)=>(v-model.mean[i])/model.std[i]);
+  const h=model.w1.map((w,j)=>Math.tanh(w.reduce((sum,v,i)=>sum+v*x[i],model.b1[j])));
+  const y=model.w2.map((w,j)=>w.reduce((sum,v,i)=>sum+v*h[i],model.b2[j]));
+  return {x:(model.om[0]+y[0]*model.os[0])*innerWidth,y:(model.om[1]+y[1]*model.os[1])*innerHeight};
 }
-const median=a=>{const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;};
+
 // Require a candidate to remain stable briefly before snapping, preventing jitter from
 // making the highlighted key jump between neighbouring targets.
 let candidateSince=0, pendingCandidate=null, lockedAwayFrames=0;
@@ -229,9 +234,9 @@ function movePointer(raw){
   const m={x:median(rawBuf.map(p=>p.x)),y:median(rawBuf.map(p=>p.y))};
   if(!ptr)ptr={...m};
   const dx=m.x-ptr.x,dy=m.y-ptr.y,d=Math.hypot(dx,dy);
-  if(d>5){
-    const step=Math.min(d*(0.22+speed*0.018),8+speed*3.2);
-    ptr.x+=dx/d*step;ptr.y+=dy/d*step;
+  if(d>2){
+    const alpha=Math.min(0.82,0.28+speed*0.045+Math.min(d/500,0.25));
+    ptr.x+=dx*alpha;ptr.y+=dy*alpha;
   }
   ptr.x=Math.max(0,Math.min(innerWidth-1,ptr.x));ptr.y=Math.max(0,Math.min(innerHeight-1,ptr.y));
   if(lockedTarget&&performance.now()<lockUntil){
@@ -246,11 +251,10 @@ function movePointer(raw){
   if(lockedTarget)clearLock();
   const candidate=targetNear(ptr.x,ptr.y), now=performance.now();
   if(candidate!==pendingCandidate){pendingCandidate=candidate;candidateSince=now;}
-  if(candidate&&now-candidateSince>=140){
-    const c=targetCenter(candidate);
-    if(c){ptr.x+=(c.x-ptr.x)*0.72;ptr.y+=(c.y-ptr.y)*0.72;}
+  if(candidate&&now-candidateSince>=180){
+    // Highlight without snapping the pointer to the target centre.
     setActive(candidate);
-  }else if(!candidate&&now-candidateSince>=180){
+  }else if(!candidate&&now-candidateSince>=100){
     setActive(null);
   }
   showPointer(ptr.x,ptr.y,true);
@@ -344,16 +348,15 @@ async function calibrate(){
   for(const [cx,cy] of order){
     const x=fr[cx]*innerWidth,y=fr[cy]*innerHeight;
     dot.classList.remove('collect');dot.style.left=x+'px';dot.style.top=y+'px';
-    await wait(1100); // let the eyes settle on the dot
+    await wait(1500);
     dot.classList.add('collect');calib.samples=[];calib.collecting=true;
-    await wait(1300);
+    await wait(2200);
     calib.collecting=false;
-    if(calib.samples.length<5)continue;
-    const k=calib.samples[0].length;
-    points.push({x,y,f:Array.from({length:k},(_,i)=>median(calib.samples.map(s=>s[i])))});
+    if(calib.samples.length<12)continue;
+    for(const f of calib.samples)points.push({x,y,f:[...f]});
   }
   dot.classList.remove('collect');overlay.style.display='none';calib=null;
-  if(points.length<6){toast('Calibration failed — your face was not seen clearly. Improve lighting and try again.');debug('Calibration needs a clearly visible face. Try again with more light.');return;}
+  if(points.length<100){toast('Calibration failed — not enough stable eye samples. Improve lighting and retry.');debug('Calibration needs more stable samples at all 9 dots.');return;}
   model=fitModel(points);localStorage.setItem('drishtiTypeGazeModel',JSON.stringify(model));
   ptr=null;rawBuf.length=0;pendingCandidate=null;candidateSince=0;
   toast('Calibrated. Look at a target, blink twice to lock it, then once more to select.');
@@ -371,8 +374,8 @@ async function start(){
     running=true;demoMode=false;lastVideoTime=-1;ptr=null;rawBuf.length=0;pendingCandidate=null;candidateSince=0;pendingCandidate=null;candidateSince=0;
     setStatus('Eye tracking active',true);
     loop();
-    if(!model){await wait(800);calibrate();}
-    else toast('Using your last calibration. Press Calibrate if the pointer is off.');
+    if(!model||model.type!=='mlp6x12x2-v1'){model=null;localStorage.removeItem('drishtiTypeGazeModel');await wait(800);calibrate();}
+    else toast('Using your last neural-network calibration. Recalibrate if needed.');
   }catch(err){
     console.error(err);stopTracking();setStatus('Camera unavailable',false);
     const msg=cameraErrorMessage(err);debug(msg);toast(msg);
