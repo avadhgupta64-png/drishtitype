@@ -275,6 +275,15 @@ function predict(f){
 // making the highlighted key jump between neighbouring targets.
 let candidateSince=0, pendingCandidate=null, lockedAwayFrames=0;
 
+// Robust median filter used to smooth the gaze coordinates. Keep this helper local
+// and dependency-free so mobile browsers do not throw a ReferenceError in movePointer.
+function median(values){
+  if(!values.length)return 0;
+  const sorted=values.slice().sort((a,b)=>a-b);
+  const mid=Math.floor(sorted.length/2);
+  return sorted.length%2?sorted[mid]:(sorted[mid-1]+sorted[mid])/2;
+}
+
 // Filter gaze noise, but avoid excessive lag. The pointer follows the gaze estimate;
 // when it stays near one target briefly, it gently snaps to that target's centre.
 function movePointer(raw){
