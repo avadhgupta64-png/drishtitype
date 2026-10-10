@@ -407,11 +407,27 @@ function processResult(res,now){
   movePointer(predict(f));
   debug('Tracking eyes · '+fps+' fps · pointer '+Math.round(ptr.x)+', '+Math.round(ptr.y)+(activeTarget?' · on '+activeTarget.textContent.trim():''));
 }
+let inferenceErrors=0,lastInferenceErrorAt=0;
 function loop(){
   if(!running)return;
   if(video.readyState>=2&&video.currentTime!==lastVideoTime){
     lastVideoTime=video.currentTime;
-    try{processResult(landmarker.detectForVideo(video,performance.now()),performance.now());}catch(e){console.error(e);}
+    try{
+      const result=landmarker.detectForVideo(video,performance.now());
+      inferenceErrors=0;
+      processResult(result,performance.now());
+    }catch(e){
+      console.error('DrishtiType MediaPipe inference failed',e);
+      const now=performance.now();
+      inferenceErrors++;
+      if(now-lastInferenceErrorAt>1200){
+        lastInferenceErrorAt=now;
+        debug('MediaPipe inference error ('+inferenceErrors+') · '+(e&&e.message?e.message:String(e)).slice(0,110));
+      }
+      // Handle runtime inference failures as well as empty landmark results.
+      // Some mobile GPU contexts fail after model creation; retry once on CPU.
+      if(inferenceErrors>=3&&!cpuFallbackTried&&!cpuFallbackInProgress)retryCpuLandmarker();
+    }
   }
   rafId=requestAnimationFrame(loop);
 }
