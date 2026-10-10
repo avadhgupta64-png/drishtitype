@@ -144,6 +144,8 @@ function selectTarget(target){
   if(!target){toast('No letter or word selected — look at one first.');return;}
   target.click();
   const bar=target.querySelector('.progress span');if(bar)bar.style.width='0%';
+  // Release every selection latch after activation so gaze can immediately move on.
+  clearLock();setActive(null);pendingCandidate=null;candidateSince=0;
   toast('Selected: '+(target.textContent||'item').trim().split('\n')[0]);
 }
 
@@ -218,7 +220,7 @@ function predict(f){
 const median=a=>{const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;};
 // Require a candidate to remain stable briefly before snapping, preventing jitter from
 // making the highlighted key jump between neighbouring targets.
-let candidateSince=0, pendingCandidate=null;
+let candidateSince=0, pendingCandidate=null, lockedAwayFrames=0;
 
 // Filter gaze noise, but avoid excessive lag. The pointer follows the gaze estimate;
 // when it stays near one target briefly, it gently snaps to that target's centre.
@@ -233,8 +235,13 @@ function movePointer(raw){
   }
   ptr.x=Math.max(0,Math.min(innerWidth-1,ptr.x));ptr.y=Math.max(0,Math.min(innerHeight-1,ptr.y));
   if(lockedTarget&&performance.now()<lockUntil){
-    const c=targetCenter(lockedTarget);if(c){ptr.x=c.x;ptr.y=c.y;}
-    showPointer(ptr.x,ptr.y,true);setActive(lockedTarget);return;
+    // Looking clearly away cancels a mistaken lock instead of trapping the pointer.
+    const c=targetCenter(lockedTarget),r=lockedTarget.getBoundingClientRect();
+    const escapeDistance=Math.max(85,Math.min(150,Math.max(r.width,r.height)*0.9));
+    if(c&&Math.hypot(m.x-c.x,m.y-c.y)>escapeDistance)lockedAwayFrames++;else lockedAwayFrames=0;
+    if(lockedAwayFrames<3){if(c){ptr.x=c.x;ptr.y=c.y;}showPointer(ptr.x,ptr.y,true);setActive(lockedTarget);return;}
+    resetBlinks();lockedAwayFrames=0;pendingCandidate=null;candidateSince=0;
+    // Continue through normal pointer movement in this same frame.
   }
   if(lockedTarget)clearLock();
   const candidate=targetNear(ptr.x,ptr.y), now=performance.now();
@@ -250,11 +257,11 @@ function movePointer(raw){
 }
 
 // ---------- Two-blink lock + third-blink confirmation ----------
-let eyesClosed=false, closedAt=0, blinkCount=0, lastBlinkEnd=0, freezeUntil=0, openBaseline=0.15;
+let eyesClosed=false, closedAt=0, blinkCount=0, lastBlinkEnd=0, freezeUntil=0, openBaseline=0.15, blinkDebounceUntil=0;
 let closeTarget=null, firstBlinkTarget=null, lockTimer=null;
 const BLINK_GAP=2800, LOCK_DURATION=2600, MIN_BLINK=40, MAX_BLINK=700;
 function resetBlinks(){
-  blinkCount=0;firstBlinkTarget=null;closeTarget=null;
+  blinkCount=0;firstBlinkTarget=null;closeTarget=null;lockedAwayFrames=0;
   if(lockTimer){clearTimeout(lockTimer);lockTimer=null;}
   clearLock();showBlinkProgress(0);
 }
@@ -266,6 +273,9 @@ function updateBlink(score,now){
     eyesClosed=false;freezeUntil=now+140;
     const dur=now-closedAt;
     if(dur<MIN_BLINK||dur>MAX_BLINK||calib){if(calib)resetBlinks();return;}
+    // Debounce noisy close/open edges so one physical blink cannot count twice.
+    if(now<blinkDebounceUntil)return;
+    blinkDebounceUntil=now+420;
     if(blinkCount>0&&now-lastBlinkEnd>BLINK_GAP)resetBlinks();
     if(blinkCount===0){
       firstBlinkTarget=closeTarget;
