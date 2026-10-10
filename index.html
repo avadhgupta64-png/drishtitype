@@ -171,7 +171,28 @@ function selectTarget(target){
 
 // ---------- Eye tracking (MediaPipe Face Landmarker with iris landmarks) ----------
 let landmarker=null, stream=null, running=false, lastVideoTime=-1, rafId=0;
-let model=JSON.parse(localStorage.getItem('drishtiTypeGazeModel')||'null');
+function readSavedModel(){
+  // localStorage can be edited, truncated, or left with an older model. Treat it as untrusted input.
+  let raw;
+  try { raw=localStorage.getItem('drishtiTypeGazeModel'); }
+  catch(e) { console.warn('Saved calibration is unavailable',e); return null; }
+  if(!raw)return null;
+  try {
+    const m=JSON.parse(raw);
+    const finiteArray=(a,n)=>Array.isArray(a)&&a.length===n&&a.every(Number.isFinite);
+    const valid=m&&m.type==='mlp6x12x2-v1'&&
+      finiteArray(m.mean,6)&&finiteArray(m.std,6)&&m.std.every(v=>v>0)&&
+      finiteArray(m.om,2)&&finiteArray(m.os,2)&&m.os.every(v=>v>0)&&
+      Array.isArray(m.w1)&&m.w1.length===12&&m.w1.every(a=>finiteArray(a,6))&&
+      finiteArray(m.b1,12)&&Array.isArray(m.w2)&&m.w2.length===2&&
+      m.w2.every(a=>finiteArray(a,12))&&finiteArray(m.b2,2);
+    if(valid)return m;
+    console.warn('Discarding invalid or incompatible saved calibration.');
+  } catch(e) { console.warn('Discarding unreadable saved calibration.',e); }
+  try { localStorage.removeItem('drishtiTypeGazeModel'); } catch(e) { console.warn('Could not clear invalid saved calibration.',e); }
+  return null;
+}
+let model=readSavedModel();
 let calib=null; // {collecting:bool, samples:[]}
 let ptr=null; const rawBuf=[];
 let speed=4;
