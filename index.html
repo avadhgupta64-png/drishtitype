@@ -63,7 +63,7 @@ const message = $('message'), keyboard = $('keyboard'), suggestions = $('suggest
 const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const numberKeys = '1234567890'.split('');
 const punctuationKeys = ['.', ',', '?', '!', "'", '-', ':', ';', '@', '/'];
-let keyboardMode = 'letters', selectionMode = 'dwell', dwellSelectedTarget = null, starting = false;
+let keyboardMode = 'letters', selectionMode = 'dwell', dwellSelectedTarget = null, starting = false, startToken = 0;
 const special = [{label:'123',value:'MODE_NUMBERS'},{label:'.,?!',value:'MODE_PUNCTUATION'},{label:'⌫',value:'BACKSPACE'},{label:'Space',value:'SPACE'},{label:'✓',value:'DONE'}];
 const dictionary = ['a','about','am','and','are','can','come','do','feel','for','friend','good','hello','help','here','hope','how','i','I','is','it','like','love','me','my','need','no','not','okay','please','sorry','thank','thanks','that','the','there','this','to','today','want','water','we','what','when','where','yes','you','your'];
 const history = [];
@@ -452,13 +452,17 @@ async function calibrate(){
 async function start(){
   if(running||starting)return;
   starting=true;
+  const token=++startToken;
   if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){starting=false;setStatus('Camera unavailable',false);toast('Webcam access needs HTTPS (or localhost) and a supported browser.');return;}
   try{
     setStatus('Requesting webcam…',false);
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}},audio:false});
+    if(token!==startToken){stream.getTracks().forEach(t=>t.stop());stream=null;starting=false;return;}
     video.srcObject=stream;await video.play();
+    if(token!==startToken){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}video.srcObject=null;starting=false;return;}
     setStatus('Loading eye model…',false);debug('Loading eye-tracking model… this can take a few seconds.');
     await loadLandmarker();
+    if(token!==startToken){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}video.srcObject=null;starting=false;return;}
     starting=false;
     running=true;demoMode=false;lastVideoTime=-1;ptr=null;rawBuf.length=0;pendingCandidate=null;candidateSince=0;pendingCandidate=null;candidateSince=0;
     setStatus('Eye tracking active',true);
@@ -472,6 +476,8 @@ async function start(){
   }
 }
 function stopTracking(){
+  startToken++;
+  starting=false;
   running=false;
   if(calib){calib.cancelled=true;calib.collecting=false;}
   cancelAnimationFrame(rafId);
