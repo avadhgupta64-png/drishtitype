@@ -171,6 +171,8 @@ function selectTarget(target){
 
 // ---------- Eye tracking (MediaPipe Face Landmarker with iris landmarks) ----------
 let landmarker=null, stream=null, running=false, lastVideoTime=-1, rafId=0;
+function clearSavedModel(){try{localStorage.removeItem('drishtiTypeGazeModel');}catch(e){console.warn('Could not clear saved calibration.',e);}}
+function persistSavedModel(m){try{localStorage.setItem('drishtiTypeGazeModel',JSON.stringify(m));return true;}catch(e){console.warn('Could not save calibration; it will last only for this page session.',e);return false;}}
 function readSavedModel(){
   // localStorage can be edited, truncated, or left with an older model. Treat it as untrusted input.
   let raw;
@@ -189,7 +191,7 @@ function readSavedModel(){
     if(valid)return m;
     console.warn('Discarding invalid or incompatible saved calibration.');
   } catch(e) { console.warn('Discarding unreadable saved calibration.',e); }
-  try { localStorage.removeItem('drishtiTypeGazeModel'); } catch(e) { console.warn('Could not clear invalid saved calibration.',e); }
+  clearSavedModel();
   return null;
 }
 let model=readSavedModel();
@@ -398,7 +400,7 @@ async function calibrate(){
   }
   dot.classList.remove('collect');overlay.style.display='none';calib=null;
   if(points.length<100){toast('Calibration failed — not enough stable eye samples. Improve lighting and retry.');debug('Calibration needs more stable samples at all 9 dots.');return;}
-  model=fitModel(points);localStorage.setItem('drishtiTypeGazeModel',JSON.stringify(model));
+  model=fitModel(points);persistSavedModel(model);
   ptr=null;rawBuf.length=0;pendingCandidate=null;candidateSince=0;
   toast('Calibrated. Look at a target, blink twice to lock it, then once more to select.');
 }
@@ -415,7 +417,7 @@ async function start(){
     running=true;demoMode=false;lastVideoTime=-1;ptr=null;rawBuf.length=0;pendingCandidate=null;candidateSince=0;pendingCandidate=null;candidateSince=0;
     setStatus('Eye tracking active',true);
     loop();
-    if(!model||model.type!=='mlp6x12x2-v1'){model=null;localStorage.removeItem('drishtiTypeGazeModel');await wait(800);calibrate();}
+    if(!model||model.type!=='mlp6x12x2-v1'){model=null;clearSavedModel();await wait(800);calibrate();}
     else toast('Using your last neural-network calibration. Recalibrate if needed.');
   }catch(err){
     console.error(err);stopTracking();setStatus('Camera unavailable',false);
