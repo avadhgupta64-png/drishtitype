@@ -25,22 +25,23 @@ button,textarea,input{font:inherit}button{cursor:pointer;color:var(--text);borde
   <textarea id="message" class="message" aria-label="Message" placeholder="Your message will appear here…"></textarea>
   <div class="panelhead" style="margin:17px 0 8px"><h2>Word suggestions</h2><span class="hint">Select a word to complete it</span></div>
   <div id="suggestions" class="suggestions"></div>
-  <div class="panelhead"><h2>Eye keyboard</h2><span class="hint">Look at a key, blink twice to lock, then once more to type</span></div>
+  <div class="panelhead"><h2>Eye keyboard</h2><span class="hint">Dwell on a target to select it. You can switch to blink selection.</span></div>
+  <div class="actions"><button id="selectionMode" data-gaze-target="control:selectionMode" aria-pressed="false">Selection: Dwell</button><button id="cancelSelection" data-gaze-target="control:cancel">Cancel selection</button></div>
   <div id="keyboard" class="keyboard"></div>
   <div class="actions">
-    <button id="space">Space</button><button id="backspace">⌫ Backspace</button><button id="undo">Undo</button><button id="clear" class="danger">Clear</button>
-    <button id="speak" class="primary">▶ Speak message</button>
+    <button id="space" data-gaze-target="control:space">Space</button><button id="backspace" data-gaze-target="control:backspace">⌫ Backspace</button><button id="undo" data-gaze-target="control:undo">Undo</button><button id="clear" data-gaze-target="control:clear" class="danger">Clear</button>
+    <button id="speak" data-gaze-target="control:speak" class="primary">▶ Speak message</button>
   </div>
 </section>
 <aside class="side">
   <section class="panel">
     <div class="panelhead"><h2>Live gaze preview</h2><span class="hint">Camera stays on device</span></div>
     <div class="cameraWrap"><video id="video" class="camera" autoplay playsinline muted></video><div class="camLabel">WEBCAM</div></div>
-    <div class="actions"><button id="start" class="primary">Start eye tracking</button><button id="stop">Stop</button></div>
+    <div class="actions"><button id="start" data-gaze-target="control:start" class="primary">Start eye tracking</button><button id="stop" data-gaze-target="control:stop">Stop</button></div>
     <div class="settings" style="margin-top:14px"><label for="speed">Pointer speed</label><input id="speed" type="range" min="1" max="10" step="1" value="4"><strong id="speedValue">4</strong></div>
     <div class="blinkMeter" aria-live="polite"><span>Blinks</span><i id="pip1"></i><i id="pip2"></i><i id="pip3"></i><span id="eyeState" class="hint">eyes —</span></div>
     <div id="gazeDebug" class="notice" style="border-color:#263a53;background:#091422;color:#9db0c8">Gaze diagnostics: waiting for tracking data…</div>
-    <div class="actions"><button id="calibrate">Calibrate eyes (9 dots)</button></div>
+    <div class="actions"><button id="calibrate" data-gaze-target="control:calibrate">Calibrate eyes (9 dots)</button></div>
     <div class="notice">Prototype note: gaze estimation is approximate and needs calibration for each person, camera, and seating position. Use the on-screen keyboard with clicks or a physical keyboard if tracking is inaccurate.</div>
   </section>
   <section class="panel">
@@ -60,7 +61,10 @@ import {FaceLandmarker, FilesetResolver} from 'https://cdn.jsdelivr.net/npm/@med
 const $ = id => document.getElementById(id);
 const message = $('message'), keyboard = $('keyboard'), suggestions = $('suggestions'), video = $('video');
 const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-const special = [{label:'123',value:'123'},{label:'⌫',value:'BACKSPACE'},{label:'Space',value:'SPACE'},{label:'✓',value:'DONE'}];
+const numberKeys = '1234567890'.split('');
+const punctuationKeys = ['.', ',', '?', '!', "'", '-', ':', ';', '@', '/'];
+let keyboardMode = 'letters', selectionMode = 'dwell', dwellSelectedTarget = null, starting = false;
+const special = [{label:'123',value:'MODE_NUMBERS'},{label:'.,?!',value:'MODE_PUNCTUATION'},{label:'⌫',value:'BACKSPACE'},{label:'Space',value:'SPACE'},{label:'✓',value:'DONE'}];
 const dictionary = ['a','about','am','and','are','can','come','do','feel','for','friend','good','hello','help','here','hope','how','i','I','is','it','like','love','me','my','need','no','not','okay','please','sorry','thank','thanks','that','the','there','this','to','today','want','water','we','what','when','where','yes','you','your'];
 const history = [];
 let toastTimer, demoMode = false, pointerDot = null;
@@ -91,10 +95,25 @@ function chooseWord(word){
 }
 function buildKeyboard(){
   keyboard.innerHTML='';
-  letters.forEach(ch=>{const b=document.createElement('button');b.className='key';b.textContent=ch;b.dataset.gazeTarget='key:'+ch;b.addEventListener('click',()=>insertLetter(ch.toLowerCase()));const p=document.createElement('div');p.className='progress';p.innerHTML='<span></span>';b.appendChild(p);keyboard.appendChild(b);});
-  special.forEach(s=>{const b=document.createElement('button');b.className='key';b.textContent=s.label;b.dataset.gazeTarget='key:'+s.value;b.style.fontSize='14px';b.addEventListener('click',()=>act(s.value));const p=document.createElement('div');p.className='progress';p.innerHTML='<span></span>';b.appendChild(p);keyboard.appendChild(b);});
+  const keys=keyboardMode==='numbers'?numberKeys:keyboardMode==='punctuation'?punctuationKeys:letters;
+  keys.forEach(ch=>{
+    const b=document.createElement('button');b.className='key';b.textContent=ch;b.dataset.gazeTarget='key:'+ch;b.setAttribute('aria-label',ch);
+    b.addEventListener('click',()=>insertText(ch.toLowerCase()));
+    const p=document.createElement('div');p.className='progress';p.innerHTML='<span></span>';b.appendChild(p);keyboard.appendChild(b);
+  });
+  special.forEach(s=>{
+    const b=document.createElement('button');b.className='key';b.textContent=s.label;b.dataset.gazeTarget='key:'+s.value;b.style.fontSize='14px';b.addEventListener('click',()=>act(s.value));
+    const p=document.createElement('div');p.className='progress';p.innerHTML='<span></span>';b.appendChild(p);keyboard.appendChild(b);
+  });
 }
-function act(v){if(v==='SPACE')space();else if(v==='BACKSPACE')backspace();else if(v==='DONE')toast('Keep going — your message is ready when you are.');else toast('Switch to the number keyboard in the next prototype.');}
+function act(v){
+  if(v==='SPACE')space();
+  else if(v==='BACKSPACE')backspace();
+  else if(v==='DONE')speakMessage();
+  else if(v==='MODE_NUMBERS'){keyboardMode=keyboardMode==='numbers'?'letters':'numbers';buildKeyboard();}
+  else if(v==='MODE_PUNCTUATION'){keyboardMode=keyboardMode==='punctuation'?'letters':'punctuation';buildKeyboard();}
+  else insertText(v);
+}
 function setStatus(text,live){$('statusText').textContent=text;$('statusDot').classList.toggle('live',!!live);}
 function debug(text){$('gazeDebug').textContent=text;}
 
@@ -141,12 +160,11 @@ function clearLock(){
   lockedTarget=null;lockUntil=0;
 }
 function selectTarget(target){
-  if(!target){toast('No letter or word selected — look at one first.');return;}
+  if(!target||target.disabled){toast('No usable target selected.');return;}
   target.click();
   const bar=target.querySelector('.progress span');if(bar)bar.style.width='0%';
-  // Release every selection latch after activation so gaze can immediately move on.
   clearLock();setActive(null);pendingCandidate=null;candidateSince=0;
-  toast('Selected: '+(target.textContent||'item').trim().split('\n')[0]);
+  toast('Selected: '+(target.getAttribute('aria-label')||target.textContent||'item').trim().split('\\n')[0]);
 }
 
 // ---------- Eye tracking (MediaPipe Face Landmarker with iris landmarks) ----------
@@ -274,10 +292,15 @@ function movePointer(raw){
   const candidate=targetNear(ptr.x,ptr.y), now=performance.now();
   if(candidate!==pendingCandidate){pendingCandidate=candidate;candidateSince=now;}
   if(candidate&&now-candidateSince>=180){
-    // Highlight without snapping the pointer to the target centre.
     setActive(candidate);
+    if(selectionMode==='dwell'&&now-candidateSince>=1100&&candidate!==dwellSelectedTarget){
+      dwellSelectedTarget=candidate;
+      selectTarget(candidate);
+    }
   }else if(!candidate&&now-candidateSince>=100){
-    setActive(null);
+    setActive(null);dwellSelectedTarget=null;
+  }else if(candidate&&candidate!==dwellSelectedTarget){
+    dwellSelectedTarget=null;
   }
   showPointer(ptr.x,ptr.y,true);
 }
@@ -299,6 +322,7 @@ function updateBlink(score,now){
     eyesClosed=false;freezeUntil=now+140;
     const dur=now-closedAt;
     if(dur<MIN_BLINK||dur>MAX_BLINK||calib){if(calib)resetBlinks();return;}
+    if(selectionMode!=='blink')return;
     // Debounce noisy close/open edges so one physical blink cannot count twice.
     if(now<blinkDebounceUntil)return;
     blinkDebounceUntil=now+420;
@@ -332,7 +356,10 @@ let frames=0,lastFpsAt=0,fps=0,faceSeen=false;
 function processResult(res,now){
   frames++;if(now-lastFpsAt>1000){fps=frames;frames=0;lastFpsAt=now;}
   const lm=res.faceLandmarks&&res.faceLandmarks[0];
-  if(!lm||lm.length<478){faceSeen=false;debug('No face detected — face the camera with your eyes well lit.');$('eyeState').textContent='no face';return;}
+  if(!lm||lm.length<478){
+    if(faceSeen){showPointer(0,0,false);setActive(null);resetBlinks();pendingCandidate=null;candidateSince=0;dwellSelectedTarget=null;}
+    faceSeen=false;debug('No face detected — pointer paused. Reposition your face/camera, then resume when tracking returns.');$('eyeState').textContent='no face';return;
+  }
   faceSeen=true;
   const bs={};(res.faceBlendshapes&&res.faceBlendshapes[0]?res.faceBlendshapes[0].categories:[]).forEach(c=>bs[c.categoryName]=c.score);
   const blink=((bs.eyeBlinkLeft||0)+(bs.eyeBlinkRight||0))/2;
@@ -423,20 +450,23 @@ async function calibrate(){
 }
 
 async function start(){
-  if(running)return;
-  if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){setStatus('Camera unavailable',false);toast('Webcam access needs HTTPS (or localhost) and a supported browser.');return;}
+  if(running||starting)return;
+  starting=true;
+  if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){starting=false;setStatus('Camera unavailable',false);toast('Webcam access needs HTTPS (or localhost) and a supported browser.');return;}
   try{
     setStatus('Requesting webcam…',false);
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}},audio:false});
     video.srcObject=stream;await video.play();
     setStatus('Loading eye model…',false);debug('Loading eye-tracking model… this can take a few seconds.');
     await loadLandmarker();
+    starting=false;
     running=true;demoMode=false;lastVideoTime=-1;ptr=null;rawBuf.length=0;pendingCandidate=null;candidateSince=0;pendingCandidate=null;candidateSince=0;
     setStatus('Eye tracking active',true);
     loop();
     if(!isValidModel(model)){model=null;try{localStorage.removeItem('drishtiTypeGazeModel');}catch{}await wait(800);if(running)calibrate();}
     else toast('Using your last neural-network calibration. Recalibrate if needed.');
   }catch(err){
+    starting=false;
     console.error(err);stopTracking();setStatus('Camera unavailable',false);
     const msg=cameraErrorMessage(err);debug(msg);toast(msg);
   }
@@ -457,18 +487,43 @@ function cameraErrorMessage(err){
 }
 
 // ---------- Wiring ----------
+function speakMessage(){
+  const text=message.value.trim();if(!text){toast('Write a message first.');return;}
+  if(!('speechSynthesis'in window)){toast('Speech synthesis is not supported in this browser.');return;}
+  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=.88;
+  u.onerror=()=>toast('Speech playback failed. Check browser voice settings.');
+  speechSynthesis.speak(u);
+}
+function cancelSelection(){
+  resetBlinks();pendingCandidate=null;candidateSince=0;dwellSelectedTarget=null;setActive(null);
+  toast('Selection cancelled.');
+}
 $('speed').addEventListener('input',e=>{speed=+e.target.value;$('speedValue').textContent=speed;});
 $('space').onclick=space;$('backspace').onclick=backspace;$('undo').onclick=undo;$('clear').onclick=clearAll;
-$('speak').onclick=()=>{const text=message.value.trim();if(!text){toast('Write a message first.');return;}if(!('speechSynthesis'in window)){toast('Speech synthesis is not supported in this browser.');return;}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=.88;speechSynthesis.speak(u);};
+$('speak').onclick=speakMessage;
+$('selectionMode').onclick=()=>{
+  selectionMode=selectionMode==='dwell'?'blink':'dwell';
+  $('selectionMode').textContent='Selection: '+(selectionMode==='dwell'?'Dwell':'Blink');
+  $('selectionMode').setAttribute('aria-pressed',String(selectionMode==='blink'));
+  cancelSelection();
+  toast(selectionMode==='dwell'?'Dwell selection: keep your gaze on a target to select.':'Blink selection: two blinks to lock, third to select.');
+};
+$('cancelSelection').onclick=cancelSelection;
 message.addEventListener('input',updateSuggestions);
 $('start').onclick=start;
-$('stop').onclick=()=>{stopTracking();demoMode=false;setStatus('Eye tracking stopped',false);debug('Eye tracking stopped.');};
+$('stop').onclick=()=>{stopTracking();starting=false;demoMode=false;setStatus('Eye tracking stopped',false);debug('Eye tracking stopped.');};
 $('calibrate').onclick=calibrate;
+$('start').setAttribute('aria-label','Start eye tracking');
+$('stop').setAttribute('aria-label','Stop eye tracking');
+$('calibrate').setAttribute('aria-label','Calibrate eye gaze');
+$('selectionMode').setAttribute('aria-pressed','false');
 $('demo').onclick=()=>{stopTracking();demoMode=true;setStatus('Demo mode · mouse',true);debug('Demo mode: the mouse moves the pointer. Click to select.');toast('Demo mode: move the mouse to highlight keys, click to select.');};
 $('privacy').onclick=()=>alert('DrishtiType prototype: messages are processed in this page and are not uploaded by this app. When you start eye tracking, webcam frames are analysed by MediaPipe inside your browser and never leave your device. Use only on a device you trust and stop tracking when finished.');
 document.addEventListener('mousemove',e=>{if(demoMode){showPointer(e.clientX,e.clientY,true);setActive(targetNear(e.clientX,e.clientY));}});
 document.addEventListener('keydown',e=>{if(e.target===message)return;if(e.key.length===1&&/[a-zA-Z]/.test(e.key))insertLetter(e.key.toLowerCase());else if(e.key==='Backspace')backspace();else if(e.key===' '){e.preventDefault();space();}});
 buildKeyboard();updateSuggestions();
+$('message').setAttribute('aria-describedby','messageHelp');
+$('message').insertAdjacentHTML('afterend','<p id="messageHelp" class="hint">Direct text editing may require another input method. Use gaze controls to compose and speak.</p>');
 
 </script>
 </body>
