@@ -495,7 +495,7 @@ function speakMessage(){
   speechSynthesis.speak(u);
 }
 function cancelSelection(){
-  resetBlinks();pendingCandidate=null;candidateSince=0;dwellSelectedTarget=null;setActive(null);
+  resetBlinks();pendingCandidate=null;candidateSince=0;setActive(null);
   toast('Selection cancelled.');
 }
 $('speed').addEventListener('input',e=>{speed=+e.target.value;$('speedValue').textContent=speed;});
