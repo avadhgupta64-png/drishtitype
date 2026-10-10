@@ -28,12 +28,12 @@
 | Space / Backspace / Undo / Clear | UI pass | Controls visible and interactive; not all state combinations exhaustively verified |
 | Speak message | UI pass only | Button present; actual audible speech and browser voice support not verified |
 | Start / Stop tracking | UI pass only | Controls present; camera permission intentionally not granted |
-| Number/punctuation keyboard | Partial | Controls identified, but automated run did not confirm each resulting layout |
-| Privacy info | Partial | Click produced no clear in-page change; likely browser alert, not confirmed by automation |
+| Number/punctuation keyboard | Pass | Follow-up production regression test confirmed letter → number → punctuation → letter and verified digit/punctuation insertion |
+| Privacy info | Pass | Follow-up production regression test opened the privacy popup and dismissed it with Escape |
 | Camera, calibration, blink-to-select | Not tested | No webcam permission or real gaze measurements collected |
 | Mobile layout / screen-reader behavior | Not fully tested | No comprehensive device/accessibility matrix run |
 
-The automated run did not provide browser DevTools console output, so “no visible error” must not be interpreted as “no console errors”.
+The automated runs did not provide browser DevTools console output, so “no visible error” must not be interpreted as “no console errors”. Follow-up regression testing confirmed number/punctuation layout transitions, typed letter/digit/punctuation input, Undo, Clear, and the privacy popup on production.
 
 ### Static source review
 
